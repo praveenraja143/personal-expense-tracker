@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apex Spend • Financial & Expense Analytics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <div class="bg-mesh"></div>
+
+  <div class="app-shell">
+    <!-- HEADER -->
+    <header class="navbar glass-card">
+      <div class="nav-brand">
+        <div class="brand-symbol">
+          <i class="fa-solid fa-wallet"></i>
+        </div>
+        <div>
+          <h1 class="brand-title">Apex<span>Spend</span></h1>
+          <p class="brand-tagline">Personal Finance & Cashflow Intelligence</p>
+        </div>
+      </div>
+
+      <div class="nav-actions">
+        <div class="month-selector-wrapper">
+          <i class="fa-regular fa-calendar"></i>
+          <input type="month" id="monthPicker" onchange="handleMonthChange()">
+        </div>
+        <button class="btn btn-secondary" onclick="openBudgetModal()">
+          <i class="fa-solid fa-bullseye"></i>
+          <span>Set Budget</span>
+        </button>
+        <a href="/api/export" class="btn btn-secondary" download>
+          <i class="fa-solid fa-file-arrow-down"></i>
+          <span>Export CSV</span>
+        </a>
+        <button class="btn btn-primary" onclick="openAddModal()">
+          <i class="fa-solid fa-plus"></i>
+          <span>New Transaction</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- METRICS CARDS -->
+    <section class="metrics-grid">
+      <div class="metric-card glass-card">
+        <div class="metric-header">
+          <span class="metric-label">Monthly Income</span>
+          <div class="metric-icon green"><i class="fa-solid fa-arrow-trend-up"></i></div>
+        </div>
+        <div class="metric-value green" id="metricIncome">₹0.00</div>
+        <div class="metric-subtext">Total credits this month</div>
+      </div>
+
+      <div class="metric-card glass-card">
+        <div class="metric-header">
+          <span class="metric-label">Monthly Expenses</span>
+          <div class="metric-icon red"><i class="fa-solid fa-arrow-trend-down"></i></div>
+        </div>
+        <div class="metric-value red" id="metricExpense">₹0.00</div>
+        <div class="metric-subtext">Total debits this month</div>
+      </div>
+
+      <div class="metric-card glass-card">
+        <div class="metric-header">
+          <span class="metric-label">Net Savings</span>
+          <div class="metric-icon blue"><i class="fa-solid fa-vault"></i></div>
+        </div>
+        <div class="metric-value" id="metricNet">₹0.00</div>
+        <div class="metric-subtext" id="metricSavingsRate">Savings Rate: 0%</div>
+      </div>
+
+      <div class="metric-card glass-card">
+        <div class="metric-header">
+          <span class="metric-label">Budget Usage</span>
+          <div class="metric-icon purple"><i class="fa-solid fa-chart-pie"></i></div>
+        </div>
+        <div class="metric-value" id="metricBudgetPct">0%</div>
+        <div class="budget-bar-track">
+          <div class="budget-bar-fill" id="budgetBarFill"></div>
+        </div>
+        <div class="metric-subtext" id="metricBudgetRatio">₹0 / ₹0 budget</div>
+      </div>
+    </section>
+
+    <!-- CHARTS SECTION -->
+    <section class="charts-grid">
+      <div class="chart-card glass-card">
+        <div class="chart-header">
+          <h3><i class="fa-solid fa-chart-pie text-cyan mr-2"></i> Category Breakdown</h3>
+        </div>
+        <div class="chart-container">
+          <canvas id="categoryChart"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-card glass-card">
+        <div class="chart-header">
+          <h3><i class="fa-solid fa-chart-column text-cyan mr-2"></i> Cashflow Trend</h3>
+        </div>
+        <div class="chart-container">
+          <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- TRANSACTIONS LIST SECTION -->
+    <section class="transactions-section glass-card">
+      <div class="section-toolbar">
+        <div class="toolbar-left">
+          <h2><i class="fa-solid fa-receipt text-cyan mr-2"></i> Recent Transactions</h2>
+          <span class="badge" id="txCountBadge">0 transactions</span>
+        </div>
+
+        <div class="toolbar-right">
+          <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="txSearch" placeholder="Search notes, category..." oninput="handleSearch()">
+          </div>
+
+          <select id="typeFilter" onchange="handleFilterChange()">
+            <option value="All">All Types</option>
+            <option value="expense">Expenses Only</option>
+            <option value="income">Income Only</option>
+          </select>
+
+          <select id="categoryFilter" onchange="handleFilterChange()">
+            <option value="All">All Categories</option>
+            <option value="Food & Dining">Food & Dining</option>
+            <option value="Housing & Rent">Housing & Rent</option>
+            <option value="Transportation">Transportation</option>
+            <option value="Bills & Utilities">Bills & Utilities</option>
+            <option value="Shopping">Shopping</option>
+            <option value="Entertainment">Entertainment</option>
+            <option value="Healthcare">Healthcare</option>
+            <option value="Salary & Income">Salary & Income</option>
+            <option value="Freelance">Freelance</option>
+            <option value="General">General</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- TABLE -->
+      <div class="table-responsive">
+        <table class="tx-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Category</th>
+              <th>Description / Note</th>
+              <th>Method</th>
+              <th>Amount</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="txTableBody">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- EMPTY STATE -->
+      <div id="txEmpty" class="empty-state hidden">
+        <i class="fa-solid fa-receipt empty-icon"></i>
+        <h3>No Transactions Found</h3>
+        <p>No transactions match your current filters or date range.</p>
+      </div>
+    </section>
+  </div>
+
+  <!-- ADD TRANSACTION MODAL -->
+  <div id="addModal" class="modal-backdrop hidden">
+    <div class="modal-card glass-card">
+      <div class="modal-header">
+        <h2><i class="fa-solid fa-plus-circle text-cyan mr-2"></i> Record Transaction</h2>
+        <button class="btn-close" onclick="closeAddModal()">&times;</button>
+      </div>
+      <form id="txForm" onsubmit="submitTransaction(event)">
+        <!-- TYPE TOGGLE -->
+        <div class="type-toggle-group">
+          <label class="type-btn">
+            <input type="radio" name="txType" value="expense" checked onchange="updateCategoryOptions()">
+            <span class="type-btn-inner expense-tab"><i class="fa-solid fa-arrow-down mr-1"></i> Expense</span>
+          </label>
+          <label class="type-btn">
+            <input type="radio" name="txType" value="income" onchange="updateCategoryOptions()">
+            <span class="type-btn-inner income-tab"><i class="fa-solid fa-arrow-up mr-1"></i> Income</span>
+          </label>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="formAmount">Amount (₹) *</label>
+            <input type="number" id="formAmount" step="0.01" min="0.01" placeholder="e.g. 450" required autofocus>
+          </div>
+          <div class="form-group flex-1">
+            <label for="formDate">Date *</label>
+            <input type="date" id="formDate" required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="formCategory">Category *</label>
+            <select id="formCategory" required>
+              <!-- Filled based on type -->
+            </select>
+          </div>
+          <div class="form-group flex-1">
+            <label for="formMethod">Payment Method</label>
+            <select id="formMethod">
+              <option value="UPI">UPI / GPay / PhonePe</option>
+              <option value="Card">Debit / Credit Card</option>
+              <option value="Cash">Cash</option>
+              <option value="Bank Transfer">Net Banking / IMPS</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="formNote">Note / Merchant</label>
+          <input type="text" id="formNote" placeholder="e.g. Swiggy lunch, Petrol, Electricity bill">
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeAddModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Transaction</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- BUDGET MODAL -->
+  <div id="budgetModal" class="modal-backdrop hidden">
+    <div class="modal-card glass-card">
+      <div class="modal-header">
+        <h2><i class="fa-solid fa-bullseye text-cyan mr-2"></i> Set Monthly Budget</h2>
+        <button class="btn-close" onclick="closeBudgetModal()">&times;</button>
+      </div>
+      <form id="budgetForm" onsubmit="submitBudget(event)">
+        <div class="form-group">
+          <label for="budgetInput">Monthly Budget Limit (₹)</label>
+          <input type="number" id="budgetInput" step="100" min="500" placeholder="e.g. 25000" required>
+          <small class="form-hint">ApexSpend tracks and notifies you when you approach your budget ceiling.</small>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeBudgetModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Budget</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
